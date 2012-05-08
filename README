@@ -1,0 +1,10 @@
+Test-OpenSC
+=============
+My test script to test OpenSC card driver.
+I'm focusing on OpenPGP card.
+
+The test script run opensc-explorer, calls "do_put" many times with different values.
+
+Run the test_*.py script to test.
+
+Require Python 2.6 or later.
