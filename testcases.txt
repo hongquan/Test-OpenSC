@@ -1,0 +1,5 @@
+#Colums: ID, Tag, New_Value, Expected error
+#Format for value: String wrapped by quote, hex not wrapped.
+001, 005b, "Nguyen Hong Quan", SC_SUCCESS
+002, 005b, "Quân", SC_SUCCESS
+003, 005b, "Ã", SC_SUCCESS
