@@ -4,6 +4,8 @@
 
 from __future__ import print_function
 import pexpect
+import os.path
+import re
 
 ACCESS_READ_NEVER   = 0
 ACCESS_READ_PIN3    = 1
@@ -239,6 +241,8 @@ class Test:
 	def __init__(self, user_pin=None, admin_pin=None):
 		self.user_pin = user_pin
 		self.admin_pin = admin_pin
+		self.testcases = []
+		self.result = []
 		# RegEx pattern for pexpect.expect(). We will also get the current directory
 		# from this.
 		self.prompt_pat = 'OpenSC \[([/0-9A-F]+)\]>'
@@ -247,8 +251,7 @@ class Test:
 		try:
 			self.osc.expect(self.prompt_pat, 10)
 		except pexpect.TIMEOUT:
-			print("Opensc-explorer hangs. It seems not able to connect to the reader.")
-			self.end(True)
+			print("Opensc-explorer hangs. It seems to be not able to connect to the reader.")
 
 	def _send(self, command, verbose=False):
 		if verbose:
@@ -310,6 +313,7 @@ class Test:
 		if self.osc.isalive():
 			if not force:
 				self.osc.sendline('quit')
+				self.osc.expect(pexpect.EOF)
 			else:
 				self.osc.close(True)
 
@@ -321,8 +325,8 @@ class TestWrite(Test):
 
 	def reread(self, tag):
 		# Nested DO cannot be read directly.
-		# We will make use of emulated folder hierarchy to read the file
-		# Locate the tag to read
+		# We will make use of emulated folder hierarchy to read the file.
+		# Locate the tag to read.
 		path = locate(tag)
 		print('Path to the DO', path)
 		self.goto_topdir()
@@ -334,6 +338,7 @@ class TestWrite(Test):
 		''' Load test cases in text file and parse them. '''
 		print("Load test cases from", filename)
 		tc = []
+		self.tc_file = filename
 		with open(filename) as fl:
 			for line in fl:
 				line = line.lstrip()
@@ -348,9 +353,9 @@ class TestWrite(Test):
 	def validate_line(self, line):
 		''' Check if line is in right format'''
 		paramnum = 4
-		segs = line.split(",")
+		segs = line.split(";; ")
 		if len(segs) != paramnum:
-			print('Syntax error: There should be {0} params in line: {1}'.format(paramnum, l))
+			print('Syntax error: There should be {0} params in line: {1}'.format(paramnum, line))
 			return None
 
 		idt, tag, value, expected = map(str.strip, segs)
@@ -363,12 +368,75 @@ class TestWrite(Test):
 		return (idt, tag.lower(), value, expected)
 
 	def runtestcase(self, tc):
+		print("=============")
 		print('Run test', tc)
 		idt, tag, value, expected = tc
 		self.write(tag, value)
+		res = self.parse_write_result()
+		if res != expected:
+			self.set_test_result(tc, 'FAIL')
+			return
+		if expected != 'SC_SUCCESS':
+			# Error test, no need to reread.
+			self.set_test_result(tc, 'PASS')
+			return
+		# Nominal test, reread to guarantee right write
+		self.reread(tag)
+		# Get the result
+		reread = self.parse_reread_result()
+		if value.startswith('"'):
+			value = value[1:-1].encode('hex')
+		print('Write: ', value.upper())
+		print('Reread:', reread)
+		if value.lower() == reread.lower():
+			self.set_test_result(tc, 'PASS')
+			return
+		else:
+			self.set_test_result(tc, 'FAIL')
+			return
+		self.result.append(', '.join((idt, tag, value, expected, ret)))
+		return ret
 
-		print('Reread:', self.reread(tag))
-		return('OK')
+	def set_test_result(self, tc, ret):
+		print('-->', ret)
+		t = list(tc)
+		t.append(ret)
+		self.result.append(', '.join(t))
+
+	def parse_write_result(self):
+		lastline = self.osc.before.splitlines()[-1]
+		se = re.search('[0-9]+ bytes written', lastline)
+		if se:
+			return 'SC_SUCCESS'
+		se = re.search('Cannot put data .* return (-?[0-9]+)', lastline)
+		if se:
+			return SCerror[int(se.group(1))]
+		se = re.search('unable to parse data', lastline)
+		if se:
+			return 'SC_ERROR_INVALID_ARGUMENTS'
+		return None
+
+	def parse_reread_result(self):
+		# Get the result lines in reverse order
+		lastlines = self.osc.before.splitlines()[::-1]
+		hexstrings = []
+		for line in lastlines:
+			se = re.search('[0-9]+: ([ 0-9A-F]+) .+', line)
+			if not se:
+				break
+			hexstrings.append(se.group(1))
+		hexstrings.reverse()
+		return ''.join(hexstrings).replace(' ', '')
 
 	def iteratetest(self):
+		self.result = []
 		map(self.runtestcase, self.testcases)
+
+		# Write result to file
+		if self.tc_file:
+			n, e = os.path.splitext(self.tc_file)
+			filename = n + '_result' + e
+		else:
+			filename = 'testresult.txt'
+		with open(filename, 'w') as fl:
+			fl.write('\n'.join(self.result))

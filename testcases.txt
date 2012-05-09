@@ -1,5 +1,7 @@
-#Colums: ID, Tag, New_Value, Expected error
+#Colums: ID;; Tag;; New_Value;; Expected error
 #Format for value: String wrapped by quote, hex not wrapped.
-001, 005b, "Nguyen Hong Quan", SC_SUCCESS
-002, 005b, "Quân", SC_SUCCESS
-003, 005b, "Ã", SC_SUCCESS
+001;; 005b;; "Name of Someone";; SC_SUCCESS
+002;; 005b;; "Quân";; SC_SUCCESS
+003;; 005b;; "Ã";; SC_SUCCESS
+004;; 005b;; "";; SC_ERROR_INVALID_ARGUMENTS
+005;; 005b;; "OpenSC provides a set of libraries and utilities to work with smart cards. Its main focus is on cards that support cryptographic operations, and facilitate their use in security applications such as authentication, mail encryption and digital signatures. OpenSC implements the PKCS#11 API so applications supporting this API (such as Mozilla Firefox and Thunderbird) can use it. On the card OpenSC implements the PKCS#15 standard and aims to be compatible with every software/card that does so, too.";; SC_ERROR_INVALID_ARGUMENTS
