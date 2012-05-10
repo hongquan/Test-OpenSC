@@ -6,6 +6,7 @@ from __future__ import print_function
 import pexpect
 import os.path
 import re
+import dertlv
 
 ACCESS_READ_NEVER   = 0
 ACCESS_READ_PIN3    = 1
@@ -101,7 +102,10 @@ SCerror = {   # From errors.h
 	-1606: 'SC_ERROR_SM_AUTHENTICATION_FAILED',
 	-1607: 'SC_ERROR_SM_RAND_FAILED',
 	-1608: 'SC_ERROR_SM_KEYSET_NOT_FOUND',
-	-1609: 'SC_ERROR_SM_IFD_DATA_MISSING'
+	-1609: 'SC_ERROR_SM_IFD_DATA_MISSING',
+
+	-1900: 'SC_ERROR_UNKNOWN',
+	-1901: 'SC_ERROR_PKCS15_APP_NOT_FOUND'
 }
 
 DOaccess = {   # From card-openpgp.c
@@ -324,8 +328,10 @@ class TestWrite(Test):
 		return self._send('do_put {0} {1}'.format(tag, data), True)
 
 	def reread(self, tag):
+		''' Reread based on cat command. '''
 		# Nested DO cannot be read directly.
 		# We will make use of emulated folder hierarchy to read the file.
+
 		# Locate the tag to read.
 		path = locate(tag)
 		print('Path to the DO', path)
@@ -333,6 +339,14 @@ class TestWrite(Test):
 		for d in path[:-1]:
 			self.goto_dir(d)
 		return self._send('cat {0}'.format(tag), True)
+
+	def rereadx(self, tag):
+		''' Reread based on do_get command.'''
+		path = locate(tag)
+		if len(path) == 1:
+			self._send('do_get {0}'.format(tag))
+		elif len(path) >= 2:
+			self._send('do_get {0}'.format(path[0]))
 
 	def loadfile(self, filename):
 		''' Load test cases in text file and parse them. '''
@@ -381,12 +395,12 @@ class TestWrite(Test):
 			self.set_test_result(tc, 'PASS')
 			return
 		# Nominal test, reread to guarantee right write
-		self.reread(tag)
+		self.rereadx(tag)
 		# Get the result
-		reread = self.parse_reread_result()
+		reread = self.parse_rereadx_result(tag)
 		if value.startswith('"'):
 			value = value[1:-1].encode('hex')
-		print('Write: ', value.upper())
+		print('Write: ', value)
 		print('Reread:', reread)
 		if value.lower() == reread.lower():
 			self.set_test_result(tc, 'PASS')
@@ -414,9 +428,13 @@ class TestWrite(Test):
 		se = re.search('unable to parse data', lastline)
 		if se:
 			return 'SC_ERROR_INVALID_ARGUMENTS'
+		se = re.search('Usage: \w+', lastline)
+		if se:
+			return 'SC_ERROR_INVALID_ARGUMENTS'
 		return None
 
 	def parse_reread_result(self):
+		''' Return the content of DO'''
 		# Get the result lines in reverse order
 		lastlines = self.osc.before.splitlines()[::-1]
 		hexstrings = []
@@ -427,6 +445,12 @@ class TestWrite(Test):
 			hexstrings.append(se.group(1))
 		hexstrings.reverse()
 		return ''.join(hexstrings).replace(' ', '')
+
+	def parse_rereadx_result(self, tag):
+		st = self.parse_reread_result()
+		# dertlv.parse_flat returns a dict containing TLVs
+		# from the DO content, indexed by tag.
+		return dertlv.parse_flat(st)[tag][1]
 
 	def iteratetest(self):
 		self.result = []
