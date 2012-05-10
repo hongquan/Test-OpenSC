@@ -1,5 +1,6 @@
 #Colums: ID;; Tag;; New_Value;; Expected error
 #Format for value: String wrapped by quote, hex not wrapped.
+# Nominal case or error case is determined based on SC_SUCCESS or SC_ERROR_
 001;; 005b;; "Name of Someone";; SC_SUCCESS
 002;; 005b;; "Quân";; SC_SUCCESS
 003;; 005b;; "Ã";; SC_SUCCESS
@@ -7,3 +8,4 @@
 005;; 005b;; "OpenSC provides a set of libraries and utilities to work with smart cards. Its main focus is on cards that support cryptographic operations, and facilitate their use in security applications such as authentication, mail encryption and digital signatures. OpenSC implements the PKCS#11 API so applications supporting this API (such as Mozilla Firefox and Thunderbird) can use it. On the card OpenSC implements the PKCS#15 standard and aims to be compatible with every software/card that does so, too.";; SC_ERROR_INVALID_ARGUMENTS
 006;; 5f2d;; 7669;; SC_SUCCESS
 007;; 5f2d;; ;; SC_ERROR_INVALID_ARGUMENTS
+008;; 5f2d;; "abc";; SC_ERROR_NOT_ALLOWED
