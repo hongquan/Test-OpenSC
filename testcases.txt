@@ -1,5 +1,6 @@
 #Colums: ID;; Tag;; New_Value;; Expected error
 #Format for value: String wrapped by quote, hex not wrapped.
+# Nominal case or error case is determined based on SC_SUCCESS or SC_ERROR_
 001;; 005b;; "Name of Someone";; SC_SUCCESS
 002;; 005b;; "Quân";; SC_SUCCESS
 003;; 005b;; "Ã";; SC_SUCCESS

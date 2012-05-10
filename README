@@ -6,5 +6,6 @@ I'm focusing on OpenPGP card.
 The test script run opensc-explorer, calls "do_put" many times with different values.
 
 Run the test_*.py script to test.
+The testcases.txt file contains test cases litst.
 
-Require Python 2.6 or later.
+Require Python 2.7 + pexpect module (not sure if Python 2.6 works).
